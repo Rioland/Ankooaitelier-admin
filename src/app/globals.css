@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
+
+  --color-brand-50: #effaf3;
+  --color-brand-100: #d8f3e2;
+  --color-brand-200: #b3e6c8;
+  --color-brand-300: #7fd2a6;
+  --color-brand-400: #48b67f;
+  --color-brand-500: #259a63;
+  --color-brand-600: #177c4e;
+  --color-brand-700: #136341;
+  --color-brand-800: #124f36;
+  --color-brand-900: #0f412e;
+  --color-brand-950: #07251a;
+  --color-ink: #0c1a13;
+  --color-cream: #f7faf6;
+
+  --animate-marquee: marquee 32s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+  @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
+  @keyframes shimmer { from { background-position: -200% 0 } to { background-position: 200% 0 } }
+}
+
+@layer base {
+  *, ::before, ::after { border-color: var(--color-neutral-200); }
+  html { scroll-behavior: smooth; }
+  body { @apply bg-white text-ink antialiased font-sans; }
+  ::selection { @apply bg-brand-200 text-brand-950; }
+  input, select, textarea { @apply outline-none; }
+}
+
+@utility container-x { @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8; }
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-all duration-300 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none; }
+@utility btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-lg shadow-brand-600/20 hover:shadow-brand-700/30; }
+@utility btn-outline { @apply btn border border-brand-600/30 text-brand-700 hover:bg-brand-50 hover:border-brand-600; }
+@utility btn-white { @apply btn bg-white text-brand-800 hover:bg-brand-50; }
+@utility input { @apply w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10; }
+@utility label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-neutral-500; }
+@utility card { @apply rounded-2xl border border-neutral-200/70 bg-white; }
+@utility skeleton { background: linear-gradient(90deg,#eef5f0 25%,#f7fbf8 50%,#eef5f0 75%); background-size: 200% 100%; @apply animate-shimmer; }
+@utility link-underline { @apply relative after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-current after:transition-transform after:duration-300 hover:after:origin-left hover:after:scale-x-100; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
