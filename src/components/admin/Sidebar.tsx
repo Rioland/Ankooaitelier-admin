@@ -4,7 +4,7 @@ import { storeUrl } from "@/lib/store";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LayoutDashboard, Package, Tags, ShoppingCart, Images, Mail, Settings, LogOut, ExternalLink, Menu, X } from "lucide-react";
+import { LayoutDashboard, Package, Tags, ShoppingCart, Images, Mail, Settings, ShieldCheck, LogOut, ExternalLink, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/app/actions";
 
@@ -16,6 +16,7 @@ const NAV = [
   { href: "/slides", label: "Hero slides", icon: Images },
   { href: "/messages", label: "Messages", icon: Mail },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/admins", label: "Admins", icon: ShieldCheck },
 ];
 
 export default function Sidebar({ pendingOrders, unread }: { pendingOrders: number; unread: number }) {

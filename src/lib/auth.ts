@@ -6,8 +6,10 @@ export const SESSION_COOKIE = "ankoo_admin";
 const secret = () =>
   new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret-change-me-dev-secret-change-me");
 
-export async function createSession(email: string) {
-  const token = await new SignJWT({ email, role: "admin" })
+export type AdminSession = { uid: number; email: string; name: string; role: string };
+
+export async function createSession(admin: { id: number; email: string; name: string }) {
+  const token = await new SignJWT({ uid: admin.id, email: admin.email, name: admin.name, role: "admin" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
@@ -21,11 +23,11 @@ export async function createSession(email: string) {
   });
 }
 
-export async function verifyToken(token?: string) {
+export async function verifyToken(token?: string): Promise<AdminSession | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
-    return payload as { email: string; role: string };
+    return payload as unknown as AdminSession;
   } catch {
     return null;
   }

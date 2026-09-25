@@ -1,12 +1,12 @@
 "use server";
 import { db } from "@/db";
-import { categories, heroSlides, messages, orders, products, settings, type StoreSettings } from "@/db/schema";
+import { admins, categories, heroSlides, messages, orders, products, settings, type StoreSettings } from "@/db/schema";
 import { createSession, destroySession, requireAdmin } from "@/lib/auth";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
 import { slugify, splitList } from "@/lib/utils";
 import { put } from "@vercel/blob";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -16,19 +16,70 @@ type State = { ok?: boolean; error?: string } | null;
 export async function login(_: State, fd: FormData): Promise<State> {
   const email = String(fd.get("email") ?? "").trim().toLowerCase();
   const password = String(fd.get("password") ?? "");
-  const adminEmail = (process.env.ADMIN_EMAIL ?? "").toLowerCase();
-  const adminPass = process.env.ADMIN_PASSWORD ?? "";
-  if (!adminEmail || !adminPass) return { error: "Admin credentials are not configured (ADMIN_EMAIL / ADMIN_PASSWORD)." };
-  // ADMIN_PASSWORD may be plain text or a bcrypt hash ($2a$/$2b$…)
-  const passOk = adminPass.startsWith("$2") ? await bcrypt.compare(password, adminPass) : password === adminPass;
-  if (email !== adminEmail || !passOk) return { error: "Invalid email or password." };
-  await createSession(email);
-  redirect("/");
+  if (!email || !password) return { error: "Email and password are required." };
+
+  // Primary: DB-backed admin accounts (managed from the Admins page).
+  const admin = await db.query.admins.findFirst({ where: eq(admins.email, email) });
+  if (admin && (await bcrypt.compare(password, admin.passwordHash))) {
+    await createSession({ id: admin.id, email: admin.email, name: admin.name });
+    redirect("/");
+  }
+
+  // Break-glass: the ADMIN_EMAIL / ADMIN_PASSWORD env account. On a successful
+  // match it is upserted into the admins table so it shows up in the list and
+  // can manage other admins — this bootstraps the very first account.
+  const envEmail = (process.env.ADMIN_EMAIL ?? "").toLowerCase();
+  const envPass = process.env.ADMIN_PASSWORD ?? "";
+  if (envEmail && envPass && email === envEmail && !admin) {
+    // ADMIN_PASSWORD may be plain text or a bcrypt hash ($2a$/$2b$…)
+    const passOk = envPass.startsWith("$2") ? await bcrypt.compare(password, envPass) : password === envPass;
+    if (passOk) {
+      const passwordHash = envPass.startsWith("$2") ? envPass : await bcrypt.hash(envPass, 10);
+      const [row] = await db
+        .insert(admins)
+        .values({ name: "Administrator", email: envEmail, passwordHash })
+        .onConflictDoUpdate({ target: admins.email, set: { email: envEmail } })
+        .returning();
+      await createSession({ id: row.id, email: row.email, name: row.name });
+      redirect("/");
+    }
+  }
+
+  return { error: "Invalid email or password." };
 }
 
 export async function logout() {
   await destroySession();
   redirect("/login");
+}
+
+/* ---------- admins ---------- */
+export async function createAdmin(_: State, fd: FormData): Promise<State> {
+  await requireAdmin();
+  const name = String(fd.get("name") ?? "").trim();
+  const email = String(fd.get("email") ?? "").trim().toLowerCase();
+  const password = String(fd.get("password") ?? "");
+  if (!name || !email) return { error: "Name and email are required." };
+  if (password.length < 6) return { error: "Password must be at least 6 characters." };
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+    await db.insert(admins).values({ name, email, passwordHash });
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    return { error: msg.includes("unique") || msg.includes("duplicate") ? "An admin with this email already exists." : "Could not create admin." };
+  }
+  revalidatePath("/admins");
+  return { ok: true };
+}
+
+export async function deleteAdmin(fd: FormData) {
+  const session = await requireAdmin();
+  const id = Number(fd.get("id"));
+  if (!id || session.uid === id) return; // you can't remove your own access
+  const [{ n }] = await db.select({ n: count() }).from(admins);
+  if (n <= 1) return; // never remove the last admin
+  await db.delete(admins).where(eq(admins.id, id));
+  revalidatePath("/admins");
 }
 
 /* ---------- uploads ---------- */
