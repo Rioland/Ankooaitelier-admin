@@ -98,6 +98,9 @@ export type StoreSettings = {
   facebook: string;
   twitter: string;
   tiktok: string;
+  ceoName: string;
+  ceoAbout: string;
+  ceoImage: string;
 };
 
 export const settings = pgTable("settings", {

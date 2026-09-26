@@ -3,6 +3,7 @@ import { useActionState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Loader2, Save } from "lucide-react";
 import { saveSettings } from "@/app/actions";
+import ImageUploader from "./ImageUploader";
 import type { StoreSettings } from "@/db/schema";
 
 const GROUPS: { title: string; fields: { k: keyof StoreSettings; l: string; hint?: string; type?: string; wide?: boolean }[] }[] = [
@@ -48,6 +49,27 @@ export default function SettingsForm({ s }: { s: StoreSettings }) {
           </div>
         </section>
       ))}
+
+      <section className="card p-6">
+        <p className="font-semibold">Founder / CEO</p>
+        <p className="mb-5 mt-1 text-xs text-neutral-500">Shown in the “Meet the founder” section on the store’s About page.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label">Founder name</label>
+            <input name="ceoName" defaultValue={String(s.ceoName ?? "")} className="input" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label">Photo</label>
+            <ImageUploader name="ceoImage" multiple={false} initial={s.ceoImage ? [s.ceoImage] : []} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label">About / bio</label>
+            <textarea name="ceoAbout" rows={8} defaultValue={String(s.ceoAbout ?? "")} className="input" />
+            <p className="mt-1 text-xs text-neutral-500">Separate paragraphs with a blank line.</p>
+          </div>
+        </div>
+      </section>
+
       <div className="sticky bottom-4 flex items-center justify-end gap-4">
         <AnimatePresence>{state?.ok && !pending && <motion.p initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-1.5 text-sm font-medium text-brand-700"><CheckCircle2 className="h-4 w-4" /> Saved</motion.p>}</AnimatePresence>
         <button disabled={pending} className="btn-primary shadow-xl">{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save settings</button>
