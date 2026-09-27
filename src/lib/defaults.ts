@@ -5,7 +5,7 @@ export const DEFAULT_SETTINGS: StoreSettings = {
   tagline: "Modern fashion, delivered across Nigeria.",
   whatsappNumber: "2348165452482",
   phone: "08165452482",
-  email: "hello@ankoo.ng",
+  email: "support@ankooaitelier.com",
   address: "Lagos, Nigeria",
   hours: "Mon – Sat, 9am – 6pm",
   announcement: "Free delivery on orders above ₦100,000 · Order easily on WhatsApp",

@@ -27,7 +27,9 @@ export default function Sidebar({ pendingOrders, unread }: { pendingOrders: numb
   const content = (
     <div className="flex h-full flex-col">
       <Link href="/" className="flex items-center gap-3 px-6 py-6">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-500 font-display text-lg font-bold text-white">A</span>
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-500 font-display text-xl font-semibold lowercase text-white">
+          <span className="relative leading-none">a<span className="absolute left-1/2 -top-1 h-1 w-1 -translate-x-1/2 rounded-full bg-white" /></span>
+        </span>
         <span className="font-display text-xl font-semibold text-white">Ankooaitelier <span className="text-brand-300">Admin</span></span>
       </Link>
       <nav className="flex-1 space-y-1 px-3">
