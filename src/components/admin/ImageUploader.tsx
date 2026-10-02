@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { Reorder, AnimatePresence, motion } from "framer-motion";
 import { ImagePlus, Link2, Loader2, X } from "lucide-react";
-import { uploadImages } from "@/app/actions";
+import { uploadImages, uploadImageFromUrl } from "@/app/actions";
 import SafeImage from "../SafeImage";
 
 export default function ImageUploader({ name, initial = [], multiple = true }: { name: string; initial?: string[]; multiple?: boolean }) {
@@ -24,9 +24,14 @@ export default function ImageUploader({ name, initial = [], multiple = true }: {
     if (input.current) input.current.value = "";
   };
 
-  const addUrl = () => {
-    if (!url.trim()) return;
-    setImages((prev) => (multiple ? [...prev, url.trim()] : [url.trim()]));
+  const addUrl = async () => {
+    const clean = url.trim();
+    if (!clean || busy) return;
+    setBusy(true); setError("");
+    const res = await uploadImageFromUrl(clean);
+    if (res.error) setError(res.error);
+    else if (res.url) setImages((prev) => (multiple ? [...prev, res.url!] : [res.url!]));
+    setBusy(false);
     setUrl("");
   };
 
@@ -55,7 +60,7 @@ export default function ImageUploader({ name, initial = [], multiple = true }: {
           <Link2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUrl(); } }} placeholder="…or paste an image URL" className="input !py-2 !pl-9" />
         </div>
-        <button type="button" onClick={addUrl} className="btn-outline !px-4 !py-2">Add</button>
+        <button type="button" onClick={addUrl} disabled={busy} className="btn-outline !px-4 !py-2 disabled:opacity-60">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}</button>
       </div>
       {multiple && images.length > 1 && <p className="mt-2 text-xs text-neutral-500">Drag to reorder — the first image is the main photo.</p>}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}

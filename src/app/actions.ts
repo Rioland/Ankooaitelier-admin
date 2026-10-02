@@ -4,13 +4,27 @@ import { admins, categories, heroSlides, messages, orders, products, settings, t
 import { createSession, destroySession, requireAdmin } from "@/lib/auth";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
 import { slugify, splitList } from "@/lib/utils";
-import { put } from "@vercel/blob";
+import { v2 as cloudinary } from "cloudinary";
 import bcrypt from "bcryptjs";
 import { count, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 type State = { ok?: boolean; error?: string } | null;
+
+// Cloudinary is configured from CLOUDINARY_URL, with the discrete vars as an
+// explicit fallback so it works whichever the host provides.
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
+
+const CLOUDINARY_READY = Boolean(
+  process.env.CLOUDINARY_URL || (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_SECRET)
+);
+const UPLOAD_FOLDER = "ankoo";
 
 /* ---------- auth ---------- */
 export async function login(_: State, fd: FormData): Promise<State> {
@@ -82,32 +96,42 @@ export async function deleteAdmin(fd: FormData) {
   revalidatePath("/admins");
 }
 
-/* ---------- uploads ---------- */
+/* ---------- uploads (Cloudinary) ---------- */
+// Upload image files chosen from the device.
 export async function uploadImages(fd: FormData): Promise<{ urls: string[]; error?: string }> {
   await requireAdmin();
   const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+  if (!files.length) return { urls: [] };
+  if (!CLOUDINARY_READY) return { urls: [], error: "Image uploads are not configured (set CLOUDINARY_URL)." };
+
   const urls: string[] = [];
-  for (const file of files) {
-    if (!file.type.startsWith("image/")) return { urls, error: "Only image files are allowed." };
-    if (file.size > 6 * 1024 * 1024) return { urls, error: "Each image must be under 6MB." };
-    const name = `products/${Date.now()}-${slugify(file.name.replace(/\.[^.]+$/, ""))}.${file.name.split(".").pop()}`;
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      const blob = await put(name, file, { access: "public", addRandomSuffix: true });
-      urls.push(blob.url);
-    } else if (process.env.NODE_ENV !== "production") {
-      // local dev fallback: write into /public/uploads
-      const fs = await import("node:fs/promises");
-      const path = await import("node:path");
-      const dir = path.join(process.cwd(), "public", "uploads");
-      await fs.mkdir(dir, { recursive: true });
-      const fname = name.replace("products/", "");
-      await fs.writeFile(path.join(dir, fname), Buffer.from(await file.arrayBuffer()));
-      urls.push(`/uploads/${fname}`);
-    } else {
-      return { urls, error: "BLOB_READ_WRITE_TOKEN is missing. Create a Blob store in Vercel → Storage." };
+  try {
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) return { urls, error: "Only image files are allowed." };
+      if (file.size > 10 * 1024 * 1024) return { urls, error: "Each image must be under 10MB." };
+      const dataUri = `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
+      const res = await cloudinary.uploader.upload(dataUri, { folder: UPLOAD_FOLDER, resource_type: "image" });
+      urls.push(res.secure_url);
     }
+  } catch (e) {
+    return { urls, error: `Upload failed: ${(e as Error).message}` };
   }
   return { urls };
+}
+
+// Import an image by URL — Cloudinary fetches the remote file and stores it,
+// so every image (device or URL) ends up as a managed Cloudinary asset.
+export async function uploadImageFromUrl(rawUrl: string): Promise<{ url?: string; error?: string }> {
+  await requireAdmin();
+  const url = rawUrl.trim();
+  if (!/^https?:\/\/.+/i.test(url)) return { error: "Enter a valid image URL starting with http(s)://" };
+  if (!CLOUDINARY_READY) return { error: "Image uploads are not configured (set CLOUDINARY_URL)." };
+  try {
+    const res = await cloudinary.uploader.upload(url, { folder: UPLOAD_FOLDER, resource_type: "image" });
+    return { url: res.secure_url };
+  } catch (e) {
+    return { error: `Could not fetch that image: ${(e as Error).message}` };
+  }
 }
 
 /* ---------- products ---------- */
